@@ -1,0 +1,116 @@
+/***************************************************************************************************************************************
+*  Quindar Tone Sequencer                                                                                                              *
+*  (test version 0.12)                                                                                                                 *
+*  Paul Christensen, W9AC (08/27/2019)                                                                                                 *
+*  © 2019 Paul Christensen, W9AC                                                                                                       *
+*  All rights reserved, although program may be freely copied or modified for non-commercial use.                                      *
+*  e-mail: w9ac@arrl.net                                                                                                               *
+*                                                                                                                                      *
+*  This program time-sequences "Quindar" tones as used on NASA Apollo Missions.  In this routine, the PTT key line is sensed and if    *
+*  closed: (1) activates Quindar tones for 250 ms; and (2) holds the PTT out line by the duration of the Quindar tones. The PTT switch * 
+*  contacts are debounced via flag checking with debounce time set in a register. An inhibit line bypasses Quindar tones from an       *
+*  external On/Off switch.                                                                                                             *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                   the following terms are fixed definitions                                                          *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+#define inh 2                                     // set the controller digital pin 2 for Quindar tone inhibit (INH) line
+#define pttIn 3                                   // set the controller digital pin 3 to the PTT sample
+#define pttOut 4                                  // set the controller digital pin 5 for PTT output 
+#define toneOutNeg 5                              // set the controller digital pin 6 for negative balanced audio line
+#define toneOutPos 6                              // set the controller digital pin 7 for positive balanced audio line                                 
+     
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                   the delay terms below are variable definitions.  Delay time in millseconds (ms.)                                   *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+long delay1 = 400;                                // enter the PTT hold time in ms
+byte delay2 = 250;                                // enter the Tone duration in ms
+byte delay3 = 150;                                // enter the debounce switch time delay in ms
+byte flag1 = 0;                                   // create ptt on flag, set to zero
+byte flag2 = 0;                                   // create loop flag, set to zero
+byte flag3 = 0;                                   // create switch debounce flag, set to zero
+long pulseMillis1 = 0;                            // create register to store current PTT event time; initialize
+long pulseMillis2 = 0;                            // create register to store current tone event timer; initialize
+long pulseMillis3 = 0;                            // create register to store the switch debounce event timer; initialize
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                  the setup routine runs once to initialize I/O                                                       *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void setup()  {
+  pinMode(inh, INPUT);                            // declare pin 2 to be a digital input
+  pinMode(pttIn, INPUT);                          // declare pin 3 to be a digital input
+  pinMode(toneOutPos, OUTPUT);                    // declare pin 6 to be a digital output
+  pinMode(toneOutNeg, OUTPUT);                    // declare pin 5 to be a digital output
+  pinMode(pttOut, OUTPUT);                        // declare pin 4 to be a digital output
+  digitalWrite(pttIn, HIGH);                      // initialize PTT in to high logic level
+  digitalWrite(toneOutPos, LOW);                  // initialize positive balanced tone channel to Off
+  digitalWrite(toneOutNeg, LOW);                  // initialize negative balanced tone channel to Off
+  digitalWrite(pttOut, LOW);                      // initialize PTT out to low logic level
+  digitalWrite(inh, HIGH);                        // initialize tone inhibit to high logic level
+}
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                              the loop routine repeats at the rate of CPU clock speed                                                 *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void loop()  {
+  if (digitalRead(inh) == HIGH) {                   // check if Quindar inhibit set, bypass the tone sequence
+    if (millis() - pulseMillis3 > delay3) {         // compute time after PTT input line closure sensed
+      flag3 = 0;                                    // after waiting the interval time, deactivate switch debounce flag
+      pulseMillis3 = millis();                      // reset switch debounce interval timer
+    }
+    if (digitalRead(pttIn) == LOW) {                // get the PTT input line state
+      flag3 = 1;                                    // activate switch debounce flag
+      pulseMillis3 = millis();                      // save the current time to a register
+    }
+    if (millis() - pulseMillis1 > delay1) {         // compute time after PTT input line closure sensed
+      digitalWrite(pttOut, LOW);                    // after waiting the interval time, deactivate PTT output key line
+    }
+    if (flag3 == 1)  {                              // get the PTT input line state via switch debounce flag
+      digitalWrite(pttOut, HIGH);                   // activate PTT output key line
+      pulseMillis1 = millis();                      // save the current time to the PTT event time register
+      flag1 = 1;                                    // turn PTT flag on
+    }
+    if (flag1 == 1)  {                              // check PTT flag state
+      if (flag2 == 1)  {                            // check tone flag state
+        if (millis() - pulseMillis2 > delay2) {     // check timer if 250 ms reached
+          digitalWrite(toneOutPos, LOW);            // if yes, then turn off balanced audio (+)
+          digitalWrite(toneOutNeg, LOW);            // turn off balanced audio (-)
+          flag1 = 0;                                // turn off PTT flag
+          flag2 = 0;                                // turn off tone flag
+        }
+      }
+      else {
+        if (flag3 == 0)  {                           // check PTT input line status via switch debounce flag
+          digitalWrite(toneOutPos, HIGH);            // if open, turn on balanced audio (+)
+          digitalWrite(toneOutNeg, HIGH);            // turn on balanced audio (-)
+          pulseMillis2 = millis();                   // save the current time to the tone event time register
+          flag2 = 1;                                 // turn on tone flag
+        }
+      }
+    }
+  }
+  else {
+    if (digitalRead(pttIn) == LOW) {                 // when in Quindar inhibit mode check PTT input line state
+      digitalWrite(pttOut, HIGH);
+    }                                                // if PTT line is keyed low then turn on PTT Out line
+    else {
+      digitalWrite(pttOut, LOW);
+    }                                                // otherwise, turn off PTT output line
+  }
+}

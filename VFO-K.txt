@@ -1,0 +1,85 @@
+﻿/****************************************************************************************************************************************
+*  VFO Keying Sequencer                                                                                                                 *
+*  (test version 0.10)                                                                                                                  *
+*  Paul Christensen, W9AC (10/06/2020)                                                                                                  *
+*  © 2020 Paul Christensen, W9AC                                                                                                        *
+*  All rights reserved, although program may be freely copied or modified for non-commercial use.                                       *
+*  e-mail: w9ac@arrl.net                                                                                                                *
+*                                                                                                                                       *                                                                                                                                      
+*  This program allows a VFO RF output to quickly start at the time of key closure based on the state of the input key line.  The key-  *
+*  output line is delayed several milliseconds after the key input is closed.  When the input key line opens, RF continues for several  *
+*  milliseconds after the key output line opens. This may seem counter-intuitive, but it's the correct timing for VFO keying. When the  *
+*  key line opens, the key output line is delayed by the amount of the key input delay to ensure so-called "dit shortening" doesn't     *  
+*  occur.                                                                                                                               *
+*																	*
+*  Most transmitters have circuitry to shape the rise and fall time of the keyed envelope. Proper timing is an essential characteristic *
+*  for good break-in VFO keying, especially with grid-block keying transmitters.                                                        *
+*    																	* 
+*  Although you'll see several references to delays, the processing loop never stops.  Delays are managed by "state machine" time       *
+*  registers and not through the use of DELAY or PAUSE commands. State machine logic allows users to stack multiple programs into one   *
+*  microcontroller.  One program has absolutely no effect on the timing of another; they are wholly independent.			*                                                                                                     *
+*																	*
+****************************************************************************************************************************************/
+
+
+/****************************************************************************************************************************************
+*                                                                                                                                       *
+*                                   the following terms are fixed definitions                                                           *
+*                                                                                                                                       *
+****************************************************************************************************************************************/
+
+#define keyIn 2                                   // set the controller digital pin 2 as key in
+#define keyOut 3                                  // set the controller digital pin 3 as key out
+#define rfOut 4                                   // set the controller digital pin 4 as the key line to the VFO PIC module
+
+/****************************************************************************************************************************************
+*                                                                                                                                       *
+*                   the delay terms below are variable definitions.  Delay time in milliseconds (ms.)                                   *
+*                                                                                                                                       *
+****************************************************************************************************************************************/
+
+byte delay1 = 20;                                 // enter the RF tail-out time delay 
+byte delay2 = 10;                                 // enter the key in lead time delay to activate the ouput key line
+byte delay3 = 10;                                 // enter the tail-out time delay to deactivate the output key line.  This delay is used to prevent "dit shortening" and is normally the same delay time as "delay2"
+long pulseMillis1 = 0;                            // create register to store current RF tail-out event timer; initialize
+long pulseMillis2 = 0;                            // create register to store current lead-in key output event timer; initialize
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                  the setup routine runs once to initialize I/O                                                       *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void setup()  {
+  pinMode(keyIn, INPUT);                          // declare pin 2 to be a digital input
+  pinMode(keyOut, OUTPUT);                        // declare pin 3 to be a digital output
+  pinMode(rfOut, OUTPUT);                         // declare pin 4 to be a digital output
+  digitalWrite(keyIn, HIGH);                      // initialize keyIn to high logic level
+  digitalWrite(keyOut, LOW);                      // initialize keyout to low logic level
+  digitalWrite(rfOut, LOW);                       // initialize rfOut to low logic level
+}
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                              the loop routine repeats at the rate of CPU clock speed                                                 *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void loop()  {                                    // start processing loop
+  if (millis() - pulseMillis1 > delay1) {         // compute tail-out time after input key line is opened
+    digitalWrite(rfOut, LOW);                     // after waiting the tail-out time, deactivate VFO RF output
+  }
+  if (digitalRead(keyIn) == LOW) {                // get the VFO input key line state
+    digitalWrite(rfOut, HIGH);                    // activate VFO RF output if key line closed
+    pulseMillis1 = millis();                      // save the current time to a register; reset timer
+  }
+  if (millis() - pulseMillis2 > delay2) {         // compute key out lead-in time after key line closure is sensed
+    digitalWrite(keyOut, HIGH);                   // after waiting the lead-in time, activate VFO key output line
+  }  
+  if (digitalRead(keyIn) == HIGH) {               // get the VFO input key line state; if the input key line is open...
+     pulseMillis2 = millis();                     // save the current time to a register; reset timer
+       if (millis() - pulseMillis1 > delay3) {    // compute the tail-out key output time after key line opens
+          digitalWrite(keyOut, LOW);              // deactivate the ouput key line
+  }
+ }
+}

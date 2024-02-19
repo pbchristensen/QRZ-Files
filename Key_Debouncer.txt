@@ -1,0 +1,61 @@
+/***************************************************************************************************************************************
+* Semiautomatic Bug Debouncer (Adafruit Trinket M0 Microcontroller)                                                                                                         *
+* (test version 0.10)                                                                                                                  *
+* Paul Christensen, W9AC (07/03/2019)                                                                                                  *
+* © 2019 Paul Christensen, W9AC                                                                                                        *
+* All rights reserved, although program may be freely copied or modified for non-commercial use.                                       *
+* e-mail: w9ac@arrl.net                                                                                                                *
+*                                                                                                                                      *
+* This routine conditions a semi-automatic key's point contacts to prevent contact bounce and cure "scratchy" CW characters.           *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                  the following terms are fixed definitions                                                           *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+#define bugIn 1                                    // set the controller digital pin 1 to the bug key sample
+#define bugOut 3                                   // set the controller digital pin 3 for bug key output                              
+       
+           
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                  the delay terms below are variable definitions.  Delay time in millseconds (ms.)                                    *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+byte delay1 = 10;                                 // enter the bug debounce time in ms
+long pulseMillis = 0;                             // create register to store current bug event time; initialize
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                 the setup routine runs once to initialize I/O                                                        *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void setup()  {
+  pinMode(bugIn, INPUT);                          // declare pin 1 to be a digital input
+  pinMode(bugOut, OUTPUT);                        // declare pin 3 to be a digital output
+  digitalWrite(bugIn, HIGH);                      // initialize bugIn to high logic level
+  digitalWrite(bugOut, LOW);                      // initialize bugOut to low logic level
+  }
+  
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                             the loop routine repeats at the rate of CPU clock speed                                                  *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void loop()  {
+
+  if (millis() - pulseMillis > delay1) {          // compute time after bug key line closure sensed
+    digitalWrite(bugOut, LOW);                    // after waiting the interval time, deactivate bug output key line
+  }
+  if (digitalRead(bugIn) == LOW) {                // get the bug key line state
+    digitalWrite(bugOut, HIGH);                   // activate bug output key line 
+    pulseMillis = millis();                       // save the current time to a register
+  } 
+}

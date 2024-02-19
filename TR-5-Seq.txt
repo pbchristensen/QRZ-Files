@@ -1,0 +1,76 @@
+/****************************************************************************************************************************************
+*  Drake TR-5 QSK Sequencer                                                                                                             *
+*  (test version 0.10)                                                                                                                  *
+*  Paul Christensen, W9AC (04/20/2023)                                                                                                  *
+*  (c) 2023 Paul Christensen, W9AC                                                                                                      *
+*  All rights reserved, although program may be freely copied or modified for non-commercial use.                                       *
+*  e-mail: w9ac@arrl.net                                                                                                                *
+*                                                                                                                                       *                                                                                                                                      
+*  This program forces the TR-5 10T line high by several milliseconds before the Tx Mixer is activated and ramped up. When the input    *
+*  key line opens, Tx Mixer 10T remains on long enough to ensure that the delayed RF tail decays to zero while still in Tx. A special 	*
+*  delay prevents "dit shortening" by adding back in the initial Tx Mixer delay.              						*
+*                                                                                                                                    	*
+****************************************************************************************************************************************/
+
+
+/****************************************************************************************************************************************
+*                                                                                                                                       *
+*                                   the following terms are fixed definitions                                                           *
+*                                                                                                                                       *
+****************************************************************************************************************************************/
+
+#define keyIn 1                                   // set the controller digital pin 1 as key in
+#define TxMix 3                                   // set the controller digital pin 3 as TxMix
+#define T10 4                                     // set the controller digital pin 4 as the 10V T line bus
+
+/****************************************************************************************************************************************
+*                                                                                                                                       *
+*                   the delay terms below are variable definitions.  Delay time in milliseconds (ms.)                                   *
+*                                                                                                                                       *
+****************************************************************************************************************************************/
+
+byte delay1 = 10;                                 // enter the RF tail-out time delay 
+byte delay2 = 4;                                  // enter the key in lead time delay to activate TxMix
+byte delay3 = 4;                                  // enter the tail-out time delay to deactivate TxMix.  This delay is used to prevent "dit shortening" and is normally the same delay time as "delay2"
+long pulseMillis1 = 0;                            // create register to store current RF tail-out event timer; initialize
+long pulseMillis2 = 0;                            // create register to store current lead-in key output event timer; initialize
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                  the setup routine runs once to initialize I/O                                                       *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void setup()  {
+  pinMode(keyIn, INPUT);                          // declare keyIn as a digital input
+  pinMode(TxMix, OUTPUT);                         // declare TxMix as a digital output
+  pinMode(T10, OUTPUT);                           // declare 10T as a digital output
+  digitalWrite(keyIn, HIGH);                      // initialize keyIn to high logic level
+  digitalWrite(TxMix, LOW);                       // initialize TxMix to low logic level
+  digitalWrite(T10, LOW);                         // initialize 10T to low logic level
+}
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                              the loop routine repeats at the rate of CPU clock speed                                                 *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void loop()  {                                    // start processing loop
+  if (millis() - pulseMillis1 > delay1) {         // compute tail-out time after input key line is opened
+    digitalWrite(T10, LOW);                       // after waiting the tail-out time, deactivate 10T line
+  }
+  if (digitalRead(keyIn) == LOW) {                // get the TR-5 input key line state
+    digitalWrite(T10, HIGH);                      // activate 10T output if key line closed
+    pulseMillis1 = millis();                      // save the current time to a register; reset timer
+  }
+  if (millis() - pulseMillis2 > delay2) {         // compute key out lead-in time after key line closure is sensed
+    digitalWrite(TxMix, HIGH);                    // after waiting the lead-in time, activate TxMix
+  }  
+  if (digitalRead(keyIn) == HIGH) {               // get the TR-5 input key line state; if the input key line is open...
+     pulseMillis2 = millis();                     // save the current time to a register; reset timer
+       if (millis() - pulseMillis1 > delay3) {    // compute the tail-out key output time after key line opens
+          digitalWrite(TxMix, LOW);               // deactivate the TxMix key line
+  }
+ }
+}

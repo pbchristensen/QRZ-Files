@@ -1,0 +1,72 @@
+/***************************************************************************************************************************************
+* S-QSK Mini Amp Key Line Pulse Stretcher - Adafruit Trinket MO                                                                        *
+* (test version 0.10)                                                                                                                  *
+* Paul Christensen, W9AC (02/23/2021)                                                                                                  *
+* © 2021 Paul Christensen, W9AC                                                                                                        *
+* All rights reserved, although program may be freely copied or modified for non-commercial use.                                       *
+* e-mail: w9ac@arrl.net                                                                                                                *
+*                                                                                                                                      *
+*    This program pulse-stretches the output of a transceiver's amp SEND key line to prevent external amplifier hot-switching.         *
+*    The transceiver's amp SEND line is sensed and conditioned by a phototransistor, the collector of which is sampled by a Trinket MO *
+*    microcontroller.                                                                                                                  *
+*                                                                                                                                      *
+*    The Trinket MO activates a photoMOS output relay to drive an amplifier key line. When the amp SEND line opens, the amplifier      *                                                                                                                                  
+*    is held closed for a small amount of time for RF to decay to zero, thus preventing a hot-switch event.                            *                                                                   
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                  the following terms are fixed definitions                                                           *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+#define keyIn 4                                   // set the controller digital pin 4 as the input key line from transceiver amp SEND jack
+#define ampOut 3                                  // set the controller digital pin 3 for the output key line to the amplifier
+#define LED 13                                    // set the controller digital pin 13 for the amp line status LED
+                              
+       
+           
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                  the delay terms below are variable definitions.  Delay time in millseconds (ms.)                                    *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+byte delay1 = 5;                                  // enter the transceiver's amp SEND line pulse-stretch time in ms
+long pulseMillis = 0;                             // create register to store current key event time; initialize
+
+
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                                 the setup routine runs once to initialize I/O                                                        *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void setup()  {
+  pinMode(keyIn, INPUT);                          // declare pin 4 to be a digital input
+  pinMode(ampOut, OUTPUT);                        // declare pin 3 to be a digital output
+  pinMode(LED, OUTPUT);                           // declare pin 13 to be a digital output
+  digitalWrite(keyIn, HIGH);                      // initialize keyIn to high logic level
+  digitalWrite(ampOut, LOW);                      // initialize ampOut to low logic level
+  digitalWrite(LED, LOW);                         // initialize LED to low logic level
+}
+  
+/***************************************************************************************************************************************
+*                                                                                                                                      *
+*                             the loop routine repeats at the rate of CPU clock speed                                                  *
+*                                                                                                                                      *
+***************************************************************************************************************************************/
+
+void loop()  {
+  if (millis() - pulseMillis > delay1) {          // compute time after the transceiver's amp SEND line closure sensed
+    digitalWrite(ampOut, LOW);                    // after waiting the interval time, deactivate amp key line
+    digitalWrite(LED, LOW);                       // deactivate Trinket LED 
+  }
+  if (digitalRead(keyIn) == LOW) {                // get the tranceiver's amp SEND line state
+    digitalWrite(ampOut, HIGH);                   // activate key line to the amplifier
+    digitalWrite(LED, HIGH);                      // activate Trinket utility LED as a key line status indicator
+    pulseMillis = millis();                       // save the current time to a register
+  } 
+}
